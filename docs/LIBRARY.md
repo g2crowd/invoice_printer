@@ -47,23 +47,14 @@ ADDRESS
 invoice = InvoicePrinter::Document.new(
   number: '201604030001',
   provider_name: 'Business s.r.o.',
-  provider_tax_id: '56565656',
-  provider_tax_id2: '465454',
   provider_lines: provider_address,
   purchaser_name: 'Adam',
-  purchaser_tax_id: '',
-  purchaser_tax_id2: '',
   purchaser_lines: "Ostravská 1\n747 70  Opava",
   issue_date: '19/03/3939',
   due_date: '19/03/3939',
   subtotal: '175',
   tax: '5',
-  tax2: '10',
-  tax3: '20',
   total: '$ 200',
-  bank_account_number: '156546546465',
-  account_iban: 'IBAN464545645',
-  account_swift: 'SWIFT5456',
   items: [item],
   note: 'A note...'
 )
@@ -111,22 +102,6 @@ InvoicePrinter.print(
 
 ## Customization
 
-### Page size
-
-Both A4 and US letter is supported. Just pass `page_size` as an argument to `print` or `render` methods:
-
-```ruby
-InvoicePrinter.print(
-  document: invoice,
-  labels: labels,
-  page_size: :a4,
-  file_name: 'invoice.pdf'
-)
-```
-
-`:letter` is the default.
-
-
 ### Localization
 
 To localize your documents you can set both global defaults or instance
@@ -157,12 +132,6 @@ InvoicePrinter.labels = {
   purchaser: 'Purchaser',
   tax_id: 'Identification number',
   tax_id2: 'Identification number',
-  payment: 'Payment',
-  payment_by_transfer: 'Payment by bank transfer on the account below:',
-  payment_in_cash: 'Payment in cash',
-  account_number: 'Account NO',
-  swift: 'SWIFT',
-  iban: 'IBAN',
   issue_date: 'Issue date',
   due_date: 'Due date',
   item: 'Item',
@@ -172,8 +141,6 @@ InvoicePrinter.labels = {
   price_per_item: 'Price per item',
   amount: 'Amount',
   tax: 'Tax',
-  tax2: 'Tax 2',
-  tax3: 'Tax 3',
   subtotal: 'Subtotal',
   total: 'Total'
 }
@@ -193,9 +160,6 @@ sublabels = {
   purchaser: 'Kupující',
   tax_id: 'IČ',
   tax_id2: 'DIČ',
-  payment: 'Forma úhrady',
-  payment_by_transfer: 'Platba na následující účet:',
-  account_number: 'Číslo účtu',
   issue_date: 'Datum vydání',
   due_date: 'Datum splatnosti',
   item: 'Položka',

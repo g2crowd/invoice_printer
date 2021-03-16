@@ -11,7 +11,6 @@ module InvoicePrinter
       strings << @document.number
       strings << provider_box
       strings << purchaser_box
-      strings << account_box
       strings << dates_box
       strings << items_table
       strings << totals_table
@@ -28,10 +27,6 @@ module InvoicePrinter
       @document.provider_lines.split("\n").each do |line|
         strings << line
       end
-      strings << "#{@labels[:tax_id]}:    #{@document.provider_tax_id}" \
-        unless @document.provider_tax_id.empty?
-      strings << "#{@labels[:tax_id2]}:    #{@document.provider_tax_id2}" \
-        unless @document.provider_tax_id2.empty?
       strings
     end
 
@@ -43,31 +38,10 @@ module InvoicePrinter
       @document.purchaser_lines.split("\n").each do |line|
         strings << line
       end
-      strings << "#{@labels[:tax_id]}:    #{@document.purchaser_tax_id}" \
-        unless @document.purchaser_tax_id.empty?
-      strings << "#{@labels[:tax_id2]}:    #{@document.purchaser_tax_id2}" \
-        unless @document.purchaser_tax_id2.empty?
       strings
     end
 
-    # Strings representaion of account's box
-    def account_box
-      strings = []
-      if @document.bank_account_number.nil?
-        strings << @labels[:payment_in_cash]
-      else
-        strings << @labels[:payment_by_transfer]
-      end
-      strings << "#{@labels[:account_number]}"
-      strings << @document.bank_account_number
-      strings << "#{@labels[:swift]}"
-      strings << @document.account_swift
-      strings << "#{@labels[:iban]}"
-      strings << @document.account_iban
-      strings
-    end
-
-    # Strings representaion of dates box
+    # Strings representation of dates box
     def dates_box
       strings = []
       strings << "#{@labels[:issue_date]}"
@@ -97,10 +71,6 @@ module InvoicePrinter
       strings << @document.subtotal
       strings << "#{@labels[:tax]}:"
       strings << @document.tax
-      strings << "#{@labels[:tax2]}:"
-      strings << @document.tax2
-      strings << "#{@labels[:tax3]}:"
-      strings << @document.tax3
       strings << "#{@labels[:total]}:   #{@document.total}"
       strings
     end
@@ -122,8 +92,6 @@ module InvoicePrinter
       ary << item.unit
       ary << item.price
       ary << item.tax
-      ary << item.tax2
-      ary << item.tax3
       ary << item.amount
       ary.compact
     end

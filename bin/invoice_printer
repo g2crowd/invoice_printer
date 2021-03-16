@@ -22,7 +22,6 @@ def show_help
          -s, --stamp   path to stamp
               --logo   path to logotype
         --background   path to background image
-         --page-size   letter or a4 (letter is the default)
       -f, --filename   output path
         -r, --render   directly render PDF stream (filename option will be ignored)
        -v, --version   show version
@@ -59,10 +58,6 @@ parser = OptionParser.new do|opts|
     options[:background] = path
   end
 
-  opts.on('--page-size OPTION') do |option|
-    options[:page_size] = option.to_sym
-  end
-
   opts.on('-f', '--filename PATH') do |path|
     options[:filename] = path
   end
@@ -89,9 +84,6 @@ begin
 
   show_help if options.empty?
 
-  # Defaults
-  options[:page_size] ||= :letter
-
   raise '--document not provided' unless options[:document]
 
   begin
@@ -113,13 +105,12 @@ begin
 
   if options[:render]
     stream = InvoicePrinter.render(
-      document:   document,
-      labels:     labels,
-      font:       options[:font],
-      stamp:      options[:stamp],
-      logo:       options[:logo],
-      background: options[:background],
-      page_size:  options[:page_size]
+      document: document,
+      labels: labels,
+      font: options[:font],
+      stamp: options[:stamp],
+      logo: options[:logo],
+      background: options[:background]
     )
 
     puts stream
@@ -127,14 +118,13 @@ begin
     raise '--filename not provided. Use --render if you with to render to STDOUT.' unless options[:filename]
 
     InvoicePrinter.print(
-      document:   document,
-      labels:     labels,
-      font:       options[:font],
-      stamp:      options[:stamp],
-      logo:       options[:logo],
-      file_name:  options[:filename],
-      background: options[:background],
-      page_size:  options[:page_size]
+      document: document,
+      labels: labels,
+      font: options[:font],
+      stamp: options[:stamp],
+      logo: options[:logo],
+      file_name: options[:filename],
+      background: options[:background]
     )
   end
 rescue => e

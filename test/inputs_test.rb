@@ -5,31 +5,18 @@ class InputsTest < Minitest::Test
 
   def test_refuse_documents_of_wrong_class
     assert_raises(StandardError) do
-      InvoicePrinter::PDFDocument.new(document: String.new)
+      InvoicePrinter::PDFDocument.new(document: '')
     end
 
     assert_raises(StandardError) do
-      InvoicePrinter.render(document: String.new)
+      InvoicePrinter.render(document: '')
     end
   end
 
   def test_refuse_items_of_wrong_class
     assert_raises(StandardError) do
-      InvoicePrinter::Document.new(items: String.new)
+      InvoicePrinter::Document.new(items: '')
     end
-  end
-
-  def test_non_string_inputs_are_converted_to_strings
-    params = default_document_params.merge(
-      provider_tax_id: 12345678910,
-      provider_tax_id2: 12345678910,
-      purchaser_tax_id: 12345678910,
-      purchaser_tax_id2: 12345678910
-    )
-
-    # No exceptions should be raised
-    invoice = InvoicePrinter::Document.new(**params)
-    InvoicePrinter.render(document: invoice)
   end
 
   def test_missing_font_raises_an_exception

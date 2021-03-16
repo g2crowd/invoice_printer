@@ -64,7 +64,6 @@ Options:
 - `stamp` - path to stamp file
 - `logo` - path to logotype file
 - `background` - path to background file
-- `page_size` - letter or A4 page size
 
 These parameters are the same as for the [command line](./COMMAND_LINE.md).
 
@@ -87,7 +86,7 @@ On error a `400` response is returned:
 Example of calling the API to render a document using `curl`:
 
 ```
-$ curl -X POST http://0.0.0.0:9393/render -H "Content-Type: application/json" --data '{"document":{"number":"c. 198900000001","provider_name":"Petr Novy","provider_tax_id":"56565656","provider_tax_id2":"","provider_lines":"Rolnická 1\n747 05  Opava\nKateřinky","purchaser_name":"Adam Cerny","purchaser_tax_id":"","purchaser_tax_id2":"","purchaser_lines":"Ostravská 1\n747 70  Opava","issue_date":"05/03/2016","due_date":"19/03/2016","subtotal":"Kc 10.000","tax":"Kc 2.100","tax2":"","tax3":"","total":"Kc 12.100,-","bank_account_number":"156546546465","account_iban":"IBAN464545645","account_swift":"SWIFT5456","items":[{"name":"Konzultace","quantity":"2","unit":"hod","price":"Kc 500","tax":"","tax2":"","tax3":"","amount":"Kc 1.000"},{"name":"Programovani","quantity":"10","unit":"hod","price":"Kc 900","tax":"","tax2":"","tax3":"","amount":"Kc 9.000"}],"note":"Osoba je zapsána v zivnostenském rejstríku."}}'
+$ curl -X POST http://0.0.0.0:9393/render -H "Content-Type: application/json" --data '{"document":{"number":"c. 198900000001","provider_name":"Petr Novy","provider_lines":"Rolnická 1\n747 05  Opava\nKateřinky","purchaser_name":"Adam Cerny","purchaser_lines":"Ostravská 1\n747 70  Opava","issue_date":"05/03/2016","due_date":"19/03/2016","subtotal":"Kc 10.000","tax":"Kc 2.100","total":"Kc 12.100,-","items":[{"name":"Konzultace","quantity":"2","unit":"hod","price":"Kc 500","tax":"","amount":"Kc 1.000"},{"name":"Programovani","quantity":"10","unit":"hod","price":"Kc 900","tax":"","amount":"Kc 9.000"}],"note":"Osoba je zapsána v zivnostenském rejstríku."}}'
 ```
 
 ##### Node.js
@@ -106,7 +105,6 @@ Options:
 - `stamp` - path to stamp file
 - `logo` - path to logotype file
 - `background` - path to background file
-- `page_size` - letter or A4 page size
 - `filename` - path for saving the generated output PDF
 
 On success a `200` response is returned:
