@@ -17,29 +17,12 @@ module InvoicePrinter
     # +amount+ should equal the +quantity+ times +price+,
     # but this is not enforced.
     class Item
-      attr_reader :name,
-                  :variable, # for anything required
-                  :quantity,
-                  :unit,
-                  :price,
-                  :tax,
-                  :tax2,
-                  :tax3,
-                  :amount
+      ATTRIBUTES = %i[name variable quantity unit price tax amount].freeze
+      attr_reader(*ATTRIBUTES)
 
       class << self
         def from_json(json)
-          new(
-            name:     json['name'],
-            variable: json['variable'],
-            quantity: json['quantity'],
-            unit:     json['unit'],
-            price:    json['price'],
-            tax:      json['tax'],
-            tax2:     json['tax2'],
-            tax3:     json['tax3'],
-            amount:   json['amount']
-          )
+          new(**json.slice(*ATTRIBUTES.map(&:to_s)).transform_keys(&:to_sym))
         end
       end
 
@@ -49,8 +32,6 @@ module InvoicePrinter
                      unit:     nil,
                      price:    nil,
                      tax:      nil,
-                     tax2:     nil,
-                     tax3:     nil,
                      amount:   nil)
 
         @name     = String(name)
@@ -59,27 +40,17 @@ module InvoicePrinter
         @unit     = String(unit)
         @price    = String(price)
         @tax      = String(tax)
-        @tax2     = String(tax2)
-        @tax3     = String(tax3)
         @amount   = String(amount)
       end
 
       def to_h
-        {
-          'name':     @name,
-          'variable': @variable,
-          'quantity': @quantity,
-          'unit':     @unit,
-          'price':    @price,
-          'tax':      @tax,
-          'tax2':     @tax2,
-          'tax3':     @tax3,
-          'amount':   @amount,
-        }
+        ATTRIBUTES.each_with_object({}) do |attr, memo|
+          memo[attr] = public_send(attr)
+        end
       end
 
-      def to_json
-        to_h.to_json
+      def to_json(...)
+        to_h.to_json(...)
       end
     end
   end

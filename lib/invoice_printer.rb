@@ -1,6 +1,7 @@
 require 'json'
 require 'invoice_printer/version'
 require 'invoice_printer/document'
+require 'invoice_printer/document/entity'
 require 'invoice_printer/document/item'
 require 'invoice_printer/pdf_document'
 
@@ -29,12 +30,6 @@ module InvoicePrinter
   #     number: '201604030001'
   #     provider: 'Provider',
   #     purchaser: 'Purchaser',
-  #     payment: 'Payment',
-  #     payment_by_transfer: 'Payment by bank transfer on the account below:',
-  #     payment_in_cash: 'Payment in cash',
-  #     account_number: 'Account NO:',
-  #     swift: 'SWIFT:',
-  #     iban: 'IBAN:',
   #     issue_date: 'Issue date:',
   #     due_date: 'Due date:',
   #     item: 'Item',
@@ -49,7 +44,7 @@ module InvoicePrinter
   #
   #   InvoicePrinter.labels = {
   #     ...
-  #     sublabels: { tax: 'Daň', amount: 'Celkem' }
+  #     sublabels: { tax: 'Dan', amount: 'Celkem' }
   #   }
   def self.labels=(labels)
     PDFDocument.labels = labels
@@ -67,17 +62,15 @@ module InvoicePrinter
   # stamp - stamp & signature (image)
   # logo - logotype (image)
   # background - background (image)
-  # page_size - :letter or :a4
   # file_name - output file
-  def self.print(document:, labels: {}, font: nil, stamp: nil, logo: nil, background: nil, page_size: :letter, file_name:)
+  def self.print(document:, file_name:, labels: {}, font: nil, stamp: nil, logo: nil, background: nil)
     PDFDocument.new(
       document: document,
       labels: labels,
       font: font,
       stamp: stamp,
       logo: logo,
-      background: background,
-      page_size: page_size
+      background: background
     ).print(file_name)
   end
 
@@ -89,16 +82,14 @@ module InvoicePrinter
   # stamp - stamp & signature (image)
   # logo - logotype (image)
   # background - background (image)
-  # page_size - :letter or :a4
-  def self.render(document:, labels: {}, font: nil, stamp: nil, logo: nil, background: nil, page_size: :letter)
+  def self.render(document:, labels: {}, font: nil, stamp: nil, logo: nil, background: nil)
     PDFDocument.new(
       document: document,
       labels: labels,
       font: font,
       stamp: stamp,
       logo: logo,
-      background: background,
-      page_size: page_size
+      background: background
     ).render
   end
 end

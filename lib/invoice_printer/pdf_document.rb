@@ -15,10 +15,10 @@ module InvoicePrinter
   #     logo: 'example.jpg'
   #   )
   class PDFDocument
-    class FontFileNotFound < StandardError; end
-    class LogoFileNotFound < StandardError; end
-    class StampFileNotFound < StandardError; end
-    class InvalidInput < StandardError; end
+    FontFileNotFound = Class.new(StandardError)
+    LogoFileNotFound = Class.new(StandardError)
+    StampFileNotFound = Class.new(StandardError)
+    InvalidInput = Class.new(StandardError)
 
     attr_reader :invoice, :labels, :file_name, :font, :stamp, :logo
 
@@ -28,34 +28,20 @@ module InvoicePrinter
       purchaser: 'Purchaser',
       tax_id: 'Identification number',
       tax_id2: 'Identification number',
-      payment: 'Payment',
-      payment_by_transfer: 'Payment by bank transfer on the account below:',
-      payment_in_cash: 'Payment in cash',
-      account_number: 'Account NO',
-      swift: 'SWIFT',
-      iban: 'IBAN',
-      issue_date: 'Issue date',
-      due_date: 'Due date',
+      issue_date: 'Issue Date',
+      due_date: 'Due Date',
+      charge_date: 'Charge Date',
       item: 'Item',
       variable: '',
       quantity: 'Quantity',
       unit: 'Unit',
       price_per_item: 'Price per item',
       tax: 'Tax',
-      tax2: 'Tax 2',
-      tax3: 'Tax 3',
       amount: 'Amount',
       subtotal: 'Subtotal',
       total: 'Total',
       sublabels: {}
-    }
-
-    PageSize = Struct.new(:name, :width, :height)
-
-    PAGE_SIZES = {
-      letter: PageSize.new('LETTER', 612.00, 792.00),
-      a4:     PageSize.new('A4', 595.28, 841.89),
-    }
+    }.freeze
 
     def self.labels
       @@labels ||= DEFAULT_LABELS
@@ -65,37 +51,28 @@ module InvoicePrinter
       @@labels = DEFAULT_LABELS.merge(labels)
     end
 
-    def initialize(document: Document.new, labels: {}, font: nil, stamp: nil, logo: nil, background: nil, page_size: :letter)
-      @document  = document
-      @labels    = merge_custom_labels(labels)
-      @font      = font
-      @stamp     = stamp
-      @logo      = logo
-      @page_size = page_size ? PAGE_SIZES[page_size.to_sym] : PAGE_SIZES[:letter]
-      @pdf       = Prawn::Document.new(background: background, page_size: @page_size.name)
+    def initialize(document: Document.new, labels: {}, font: nil, stamp: nil, logo: nil, background: nil)
+      @document = document
+      @labels = merge_custom_labels(labels)
+      @font = font
+      @pdf = Prawn::Document.new(background: background, page_size: 'LETTER')
 
       raise InvalidInput, 'document is not a type of InvoicePrinter::Document' \
         unless @document.is_a?(InvoicePrinter::Document)
 
-      if used? @logo
-        if File.exist?(@logo)
-          @logo = logo
-        else
-          raise LogoFileNotFound, "Logotype file not found at #{@logo}"
-        end
+      if used? logo
+        raise LogoFileNotFound, "Logotype file not found at #{logo}" unless File.exist?(logo)
+
+        @logo = logo
       end
 
-      if used? @stamp
-        if File.exist?(@stamp)
-          @stamp = stamp
-        else
-          raise StampFileNotFound, "Stamp file not found at #{@stamp}"
-        end
+      if used? stamp
+        raise StampFileNotFound, "Stamp file not found at #{stamp}" unless File.exist?(stamp)
+
+        @stamp = stamp
       end
 
-      if used? @font
-        use_font(@font)
-      end
+      use_font(@font) if used? @font
 
       build_pdf
     end
@@ -113,19 +90,17 @@ module InvoicePrinter
     private
 
     def use_font(font)
-      if File.exist?(@font)
-        set_font_from_path(@font)
+      if File.exist?(font)
+        set_font_from_path(font)
       else
-        set_builtin_font(@font)
+        set_builtin_font(font)
       end
     end
 
     def set_builtin_font(font)
       require 'invoice_printer/fonts'
 
-      @pdf.font_families.update(
-        "#{font}" => InvoicePrinter::Fonts.paths_for(font)
-      )
+      @pdf.font_families.update(font.to_s => InvoicePrinter::Fonts.paths_for(font))
       @pdf.font(font)
 
     rescue StandardError
@@ -136,7 +111,7 @@ module InvoicePrinter
     def set_font_from_path(font)
       font_name = Pathname.new(font).basename
       @pdf.font_families.update(
-        "#{font_name}" => {
+        font_name.to_s => {
           normal: font,
           italic: font,
           bold: font,
@@ -153,9 +128,8 @@ module InvoicePrinter
       @pdf.fill_color '000000'
       @pdf.stroke_color 'aaaaaa'
       build_header
-      build_provider_box
-      build_purchaser_box
-      build_payment_method_box
+      build_entity_box label: :provider
+      build_entity_box label: :purchaser, offset: 274
       build_info_box
       build_items
       build_total
@@ -174,394 +148,78 @@ module InvoicePrinter
         @labels[:name],
         size: 20,
         align: :left,
-        at: [0, y(720) - @push_down],
-        width: x(300),
+        at: [0, 720 - @push_down],
+        width: 300
       )
 
       if used? @labels[:sublabels][:name]
         @pdf.text_box(
           @labels[:sublabels][:name],
           size: 12,
-          at: [0, y(720) - @push_down - 22],
-          width: x(300),
+          at: [0, 720 - @push_down - 22],
+          width: 300,
           align: :left
         )
+      end
+
+      unless @document.status.empty?
+        @pdf.fill_color.tap do |original|
+          @pdf.fill_color 'ff0000'
+          @pdf.text_box(
+            @document.status,
+            size: 20,
+            at: [220, 710 - @push_down],
+            rotate: 20
+          )
+          @pdf.fill_color original
+        end
       end
 
       @pdf.text_box(
         @document.number,
         size: 20,
-        at: [x(240), y(720) - @push_down],
-        width: x(300),
+        at: [240, 720 - @push_down],
+        width: 300,
         align: :right
       )
 
       @pdf.move_down(250)
-
-      if used? @labels[:sublabels][:name]
-        @pdf.move_down(12)
-      end
+      @pdf.move_down(12) if used? @labels[:sublabels][:name]
     end
 
-    # Build the following provider box:
-    #
-    #    ------------------------------------------
-    #   | Provider       Optional provider sublabel|
-    #   | PROVIDER co.                             |
-    #   | 5th Street                               |
-    #   | 747 27    City                           |
-    #   |           Part of the city               |
-    #   |                                          |
-    #   | Identification number: Number            |
-    #   | Identification number: Number 2          |
-    #    ------------------------------------------
-    #
-    def build_provider_box
+    def build_entity_box(label:, offset: 0)
+      entity = @document.public_send label
+
       @pdf.text_box(
-        @document.provider_name,
+        entity.name,
         size: 15,
-        at: [10, y(640) - @push_down],
-        width: x(220)
+        at: [10 + offset, 640 - @push_down],
+        width: 240
       )
+
       @pdf.text_box(
-        @labels[:provider],
+        @labels[label],
         size: 11,
-        at: [10, y(660) - @push_down],
-        width: x(240)
+        at: [10 + offset, 660 - @push_down],
+        width: 240
       )
-      if used? @labels[:sublabels][:provider]
-        @pdf.text_box(
-          @labels[:sublabels][:provider],
-          size: 10,
-          at: [10, y(660) - @push_down],
-          width: x(246),
-          align: :right
-        )
-      end
-      # Render provider_lines if present
-      if !@document.provider_lines.empty?
-        lines = @document.provider_lines.split("\n")
+
+      unless entity.lines.empty?
+        lines = entity.lines.split("\n")
         line_y = 618
         lines.each_with_index do |line, index|
-          next if index > 3
+          next if index > 5
 
           @pdf.text_box(
-            "#{line}",
+            line.to_s,
             size: 10,
-            at: [10, y(line_y - index*15) - @push_down],
-            width: x(240)
-          )
-        end
-      else
-        @pdf.text_box(
-          "#{@document.provider_street}    #{@document.provider_street_number}",
-          size: 10,
-          at: [10, y(620) - @push_down],
-          width: x(240)
-        )
-        @pdf.text_box(
-          @document.provider_postcode,
-          size: 10,
-          at: [10, y(605) - @push_down],
-          width: x(240)
-        )
-        @pdf.text_box(
-          @document.provider_city,
-          size: 10,
-          at: [60, y(605) - @push_down],
-          width: x(240)
-        )
-        unless @document.provider_city_part.empty?
-          @pdf.text_box(
-            @document.provider_city_part,
-            size: 10,
-            at: [60, y(590) - @push_down],
-            width: x(240)
-          )
-        end
-        unless @document.provider_extra_address_line.empty?
-          @pdf.text_box(
-            @document.provider_extra_address_line,
-            size: 10,
-            at: [10, y(575) - @push_down],
-            width: x(240)
+            at: [10 + offset, (line_y - index * 15) - @push_down],
+            width: 240
           )
         end
       end
-      unless @document.provider_tax_id.empty?
-        @pdf.text_box(
-          "#{@labels[:tax_id]}:    #{@document.provider_tax_id}",
-          size: 10,
-          at: [10, y(550) - @push_down],
-          width: x(240)
-        )
-      end
-      unless @document.provider_tax_id2.empty?
-        @pdf.text_box(
-          "#{@labels[:tax_id2]}:    #{@document.provider_tax_id2}",
-          size: 10,
-          at: [10, y(535) - @push_down],
-          width: x(240)
-        )
-      end
-      @pdf.stroke_rounded_rectangle([0, y(670) - @push_down], x(266), y(150), 6)
-    end
 
-    # Build the following purchaser box:
-    #
-    #    -------------------------------------------
-    #   | Purchaser      Optinal purchaser sublabel|
-    #   | PURCHASER co.                            |
-    #   | 5th Street                               |
-    #   | 747 27    City                           |
-    #   |           Part of the city               |
-    #   |                                          |
-    #   | Identification number: Number            |
-    #   | Identification number: Number 2          |
-    #    ------------------------------------------
-    #
-    def build_purchaser_box
-      @pdf.text_box(
-        @document.purchaser_name,
-        size: 15,
-        at: [x(284), y(640) - @push_down],
-        width: x(240)
-      )
-      @pdf.text_box(
-        @labels[:purchaser],
-        size: 11,
-        at: [x(284), y(660) - @push_down],
-        width: x(240)
-      )
-
-      if used? @labels[:sublabels][:purchaser]
-        @pdf.text_box(
-          @labels[:sublabels][:purchaser],
-          size: 10,
-          at: [10, y(660) - @push_down],
-          width: x(520),
-          align: :right
-        )
-      end
-      # Render purchaser_lines if present
-      if !@document.purchaser_lines.empty?
-        lines = @document.purchaser_lines.split("\n")
-        line_y = 618
-        lines.each_with_index do |line, index|
-          next if index > 3
-
-          @pdf.text_box(
-            "#{line}",
-            size: 10,
-            at: [x(284), y(line_y - index*15) - @push_down],
-            width: x(240)
-          )
-        end
-      else
-        @pdf.text_box(
-          "#{@document.purchaser_street}    #{@document.purchaser_street_number}",
-          size: 10,
-          at: [x(284), y(620) - @push_down],
-          width: x(240)
-        )
-        @pdf.text_box(
-          @document.purchaser_postcode,
-          size: 10,
-          at: [x(284), y(605) - @push_down],
-          width: x(240)
-        )
-        @pdf.text_box(
-          @document.purchaser_city,
-          size: 10,
-          at: [x(334), y(605) - @push_down],
-          width: x(240)
-        )
-        unless @document.purchaser_city_part.empty?
-          @pdf.text_box(
-            @document.purchaser_city_part,
-            size: 10,
-            at: [x(334), y(590) - @push_down],
-            width: x(240)
-          )
-        end
-        unless @document.purchaser_extra_address_line.empty?
-          @pdf.text_box(
-            @document.purchaser_extra_address_line,
-            size: 10,
-            at: [x(284), y(575) - @push_down],
-            width: x(240)
-          )
-        end
-      end
-      unless @document.purchaser_tax_id.empty?
-        @pdf.text_box(
-          "#{@labels[:tax_id]}:    #{@document.purchaser_tax_id}",
-          size: 10,
-          at: [x(284), y(550) - @push_down],
-          width: x(240)
-        )
-      end
-      unless @document.purchaser_tax_id2.empty?
-        @pdf.text_box(
-          "#{@labels[:tax_id2]}:    #{@document.purchaser_tax_id2}",
-          size: 10,
-          at: [x(284), y(535) - @push_down],
-          width: x(240)
-        )
-      end
-      @pdf.stroke_rounded_rectangle([x(274), y(670) - @push_down], x(266), y(150), 6)
-    end
-
-    # Build the following payment box:
-    #
-    #    -----------------------------------------
-    #   | Payment on the following bank account:  |
-    #   | Number:                       3920392032|
-    #   | Optional number sublabel                |
-    #   | SWIFT:                                xy|
-    #   | Optional SWIFT sublabel                 |
-    #   | IBAN:                                 xy|
-    #   | Optional IBAN sublabel                  |
-    #    -----------------------------------------
-    #
-    # If the bank account number is not provided include a note about payment
-    # in cash.
-    def build_payment_method_box
-      @push_down -= 3
-
-      unless letter?
-        @push_items_table += 18
-      end
-
-      # Match the height of next box if needed
-      min_height = 60
-      if used?(@document.issue_date) || used?(@document.due_date)
-        min_height = (used?(@document.issue_date) && used?(@document.due_date)) ? 75 : 60
-      end
-      @payment_box_height = min_height
-
-      if @document.bank_account_number.empty?
-        @pdf.text_box(
-          @labels[:payment],
-          size: 10,
-          at: [10, y(498) - @push_down],
-          width: x(234)
-        )
-        @pdf.text_box(
-          @labels[:payment_in_cash],
-          size: 10,
-          at: [10, y(483) - @push_down],
-          width: x(234)
-        )
-
-        @pdf.stroke_rounded_rectangle([0, y(508) - @push_down], x(266), @payment_box_height, 6)
-      else
-        @payment_box_height = 60
-        @push_iban = 0
-        sublabel_change = 0
-        @pdf.text_box(
-          @labels[:payment_by_transfer],
-          size: 10,
-          at: [10, y(498) - @push_down],
-          width: x(234)
-        )
-        @pdf.text_box(
-          "#{@labels[:account_number]}",
-          size: 11,
-          at: [10, y(483) - @push_down],
-          width: x(134)
-        )
-        @pdf.text_box(
-          @document.bank_account_number,
-          size: 13,
-          at: [21, y(483) - @push_down],
-          width: x(234),
-          align: :right
-        )
-        if used? @labels[:sublabels][:account_number]
-          @pdf.text_box(
-            "#{@labels[:sublabels][:account_number]}",
-            size: 10,
-            at: [10, y(468) - @push_down],
-            width: x(334)
-          )
-        else
-          @payment_box_height -= 10
-          sublabel_change -= 10
-        end
-        unless @document.account_swift.empty?
-          @pdf.text_box(
-            "#{@labels[:swift]}",
-            size: 11,
-            at: [10, y(453) - @push_down - sublabel_change],
-            width: x(134)
-          )
-          @pdf.text_box(
-            @document.account_swift,
-            size: 13,
-            at: [21, y(453) -  @push_down - sublabel_change],
-            width: x(234),
-            align: :right
-          )
-
-          if used? @labels[:sublabels][:swift]
-            @pdf.text_box(
-              "#{@labels[:sublabels][:swift]}",
-              size: 10,
-              at: [10, y(438) - @push_down - sublabel_change],
-              width: x(334)
-            )
-            @push_items_table += 10
-          else
-            @payment_box_height -= 10
-            sublabel_change -= 10
-          end
-
-          @payment_box_height += 30
-          @push_iban = 30
-          @push_items_table += 18
-        end
-        unless @document.account_iban.empty?
-          @pdf.text_box(
-            "#{@labels[:iban]}",
-            size: 11,
-            at: [10, y(453) - @push_iban - @push_down - sublabel_change],
-            width: x(134)
-          )
-          @pdf.text_box(
-            @document.account_iban,
-            size: 13,
-            at: [21, y(453) - @push_iban - @push_down - sublabel_change],
-            width: x(234),
-            align: :right
-          )
-
-          if used? @labels[:sublabels][:iban]
-            @pdf.text_box(
-              "#{@labels[:sublabels][:iban]}",
-              size: 10,
-              at: [10, y(438) - @push_iban - @push_down - sublabel_change],
-              width: x(334)
-            )
-            @push_items_table += 10
-          else
-            @payment_box_height -= 10
-          end
-
-          @payment_box_height += 30
-          @push_items_table += 18
-        end
-        if min_height > @payment_box_height
-          @payment_box_height = min_height
-          @push_items_table += 25
-        end
-
-        if !@document.account_swift.empty? && !@document.account_iban.empty?
-          @push_items_table += 2
-        end
-
-        @pdf.stroke_rounded_rectangle([0, y(508) - @push_down], x(266), @payment_box_height, 6)
-      end
+      @pdf.stroke_rounded_rectangle([offset, 670 - @push_down], 266, 150, 6)
     end
 
     # Build the following info box:
@@ -574,75 +232,31 @@ module InvoicePrinter
     #    --------------------------------
     #
     def build_info_box
-      issue_date_present = !@document.issue_date.empty?
+      dates = 0
 
-      if issue_date_present
+      %i[issue_date due_date charge_date].each do |date|
+        value = @document.public_send(date)
+        next if value.empty?
+
+        position = 498 - (dates * 20)
+        dates += 1
+
         @pdf.text_box(
-          @labels[:issue_date],
+          @labels[date],
           size: 11,
-          at: [x(284), y(498) - @push_down],
-          width: x(240)
+          at: [10, position - @push_down],
+          width: 240
         )
         @pdf.text_box(
-          @document.issue_date,
-          size: 13,
-          at: [x(384), y(498) - @push_down],
-          width: x(146),
+          value,
+          size: 11,
+          at: [110, position - @push_down],
+          width: 146,
           align: :right
         )
       end
 
-      if used? @labels[:sublabels][:issue_date]
-        position = issue_date_present ? 483 : 498
-
-        @pdf.text_box(
-          @labels[:sublabels][:issue_date],
-          size: 10,
-          at: [x(284), y(position) - @push_down],
-          width: x(240)
-        )
-      end
-
-      due_date_present = !@document.due_date.empty?
-
-      if due_date_present
-        position = issue_date_present ? 478 : 493
-        position -= 10 if used? @labels[:sublabels][:issue_date]
-
-        @pdf.text_box(
-          @labels[:due_date],
-          size: 11,
-          at: [x(284), y(position) - @push_down],
-          width: x(240)
-        )
-        @pdf.text_box(
-          @document.due_date,
-          size: 13,
-          at: [x(384), y(position) - @push_down],
-          width: x(146),
-          align: :right
-        )
-      end
-
-      if used? @labels[:sublabels][:due_date]
-        position = issue_date_present ? 463 : 478
-        position -= 10 if used? @labels[:sublabels][:issue_date]
-
-        @pdf.text_box(
-          @labels[:sublabels][:due_date],
-          size: 10,
-          at: [x(284), y(position) - @push_down],
-          width: x(240)
-        )
-      end
-
-      if issue_date_present || due_date_present
-        height = (issue_date_present && due_date_present) ? 75 : 60
-        height = @payment_box_height if @payment_box_height > height
-
-        @pdf.stroke_rounded_rectangle([x(274), y(508) - @push_down], x(266), height, 6)
-        @push_items_table += 12 if @push_items_table <= 18
-      end
+      @push_items_table += 45 + (dates - 1) * 15 if dates.positive?
     end
 
     # Build the following table for document items:
@@ -653,9 +267,9 @@ module InvoicePrinter
     #   |x    |         2|    hr|              $2|   $1|              $4|
     #   =================================================================
     #
-    # variable (2nd position), tax2 and tax3 (after tax) fields can be added
-    # as well if necessary. variable does not come with any default label.
-    # If a specific column miss data, it's omittted.
+    # variable (2nd position) field can be added as well if necessary.
+    # variable does not come with any default label.
+    # If a specific column miss data, it's omitted.
     #
     # Using sublabels one can change the table to look as:
     #
@@ -666,7 +280,7 @@ module InvoicePrinter
     #   |x    |         2|    hr|              $2|   $1|              $4|
     #   =================================================================
     def build_items
-      @pdf.move_down(23 + @push_items_table + @push_down)
+      @pdf.move_down(@push_items_table + @push_down)
 
       items_params = determine_items_structure
       items = build_items_data(items_params)
@@ -676,7 +290,7 @@ module InvoicePrinter
       options = {
         header: true,
         row_colors: [nil, 'ededed'],
-        width: x(540, 2),
+        width: 540,
         cell_style: {
           borders: []
         }
@@ -705,8 +319,6 @@ module InvoicePrinter
         items_params[:units] = true unless item.unit.empty?
         items_params[:prices] = true unless item.price.empty?
         items_params[:taxes] = true unless item.tax.empty?
-        items_params[:taxes2] = true unless item.tax2.empty?
-        items_params[:taxes3] = true unless item.tax3.empty?
         items_params[:amounts] = true unless item.amount.empty?
       end
       items_params
@@ -722,8 +334,6 @@ module InvoicePrinter
         line << { content: item.unit, align: :right } if items_params[:units]
         line << { content: item.price, align: :right } if items_params[:prices]
         line << { content: item.tax, align: :right } if items_params[:taxes]
-        line << { content: item.tax2, align: :right } if items_params[:taxes2]
-        line << { content: item.tax3, align: :right } if items_params[:taxes3]
         line << { content: item.amount, align: :right } if items_params[:amounts]
         line
       end
@@ -738,8 +348,6 @@ module InvoicePrinter
       headers << { content: label_with_sublabel(:unit), align: :right } if items_params[:units]
       headers << { content: label_with_sublabel(:price_per_item), align: :right } if items_params[:prices]
       headers << { content: label_with_sublabel(:tax), align: :right } if items_params[:taxes]
-      headers << { content: label_with_sublabel(:tax2), align: :right } if items_params[:taxes2]
-      headers << { content: label_with_sublabel(:tax3), align: :right } if items_params[:taxes3]
       headers << { content: label_with_sublabel(:amount), align: :right } if items_params[:amounts]
       headers
     end
@@ -747,9 +355,7 @@ module InvoicePrinter
     # This merge a label with its sublabel on a new line
     def label_with_sublabel(symbol)
       value = @labels[symbol]
-      if used? @labels[:sublabels][symbol]
-        value += "\n#{@labels[:sublabels][symbol]}"
-      end
+      value += "\n#{@labels[:sublabels][symbol]}" if used? @labels[:sublabels][symbol]
       value
     end
 
@@ -771,16 +377,10 @@ module InvoicePrinter
         unless @document.subtotal.empty?
       items << [{ content: "#{@labels[:tax]}:#{build_sublabel_for_total_table(:tax)}", align: :right }, @document.tax] \
         unless @document.tax.empty?
-      items << [{ content: "#{@labels[:tax2]}:#{build_sublabel_for_total_table(:tax2)}", align: :right }, @document.tax2] \
-        unless @document.tax2.empty?
-      items << [{ content: "#{@labels[:tax3]}:#{build_sublabel_for_total_table(:tax3)}", align: :right }, @document.tax3] \
-        unless @document.tax3.empty?
 
       width = [
         "#{@labels[:subtotal]}#{@document.subtotal}".size,
-        "#{@labels[:tax]}#{@document.tax}".size,
-        "#{@labels[:tax2]}#{@document.tax2}".size,
-        "#{@labels[:tax3]}#{@document.tax3}".size
+        "#{@labels[:tax]}#{@document.tax}".size
       ].max * 8
 
       options = {
@@ -789,29 +389,29 @@ module InvoicePrinter
         }
       }
 
-      @pdf.span(x(width), position: :right) do
+      @pdf.span(width, position: :right) do
         @pdf.table(items, options) unless items.empty?
       end
 
       @pdf.move_down(15)
 
-      unless @document.total.empty?
+      return if @document.total.empty?
+
+      @pdf.text(
+        "#{@labels[:total]}:   #{@document.total}",
+        size: 16,
+        align: :right,
+        style: :bold
+      )
+
+      @pdf.move_down(5)
+
+      if used? @labels[:sublabels][:total]
         @pdf.text(
-          "#{@labels[:total]}:   #{@document.total}",
-          size: 16,
-          align: :right,
-          style: :bold
+          "#{@labels[:sublabels][:total]}:   #{@document.total}",
+          size: 12,
+          align: :right
         )
-
-        @pdf.move_down(5)
-
-        if used? @labels[:sublabels][:total]
-          @pdf.text(
-            "#{@labels[:sublabels][:total]}:   #{@document.total}",
-            size: 12,
-            align: :right
-          )
-        end
       end
     end
 
@@ -845,54 +445,37 @@ module InvoicePrinter
     # Note at the end
     def build_note
       @pdf.text_box(
-        "#{@document.note}",
+        @document.note.to_s,
         size: 10,
         at: [0, note_height],
-        width: x(450),
+        width: 450,
         align: :left
       )
     end
 
     def note_height
-      @note_height ||= begin
-        num_of_lines = @document.note.lines.count
-        (num_of_lines * 11)
-      end
+      @note_height ||=
+        begin
+          num_of_lines = @document.note.lines.count
+          (num_of_lines * 11)
+        end
     end
 
     # Include page numbers if we got more than one page
     def build_footer
+      return if @pdf.page_count == 1
+
       @pdf.number_pages(
         '<page> / <total>',
         start_count_at: 1,
         at: [@pdf.bounds.right - 50, 0],
         align: :right,
         size: 12
-      ) unless @pdf.page_count == 1
+      )
     end
 
     def used?(element)
       element && !element.empty?
-    end
-
-    def letter?
-      @page_size.name == 'LETTER'
-    end
-
-    # Return correct x/width relative to page size
-    def x(value, adjust = 1)
-      return value if letter?
-
-      width_ratio = value / PAGE_SIZES[:letter].width
-      (width_ratio * @page_size.width) - adjust
-    end
-
-    # Return correct y/height relative to page size
-    def y(value)
-      return value if letter?
-
-      width_ratio = value / PAGE_SIZES[:letter].height
-      width_ratio * @page_size.height
     end
 
     def merge_custom_labels(labels = {})
@@ -908,9 +491,8 @@ module InvoicePrinter
     def hash_keys_to_symbols(value)
       return value unless value.is_a? Hash
 
-      value.inject({}) do |memo, (k, v)|
+      value.each_with_object({}) do |(k, v), memo|
         memo[k.to_sym] = hash_keys_to_symbols(v)
-        memo
       end
     end
   end
