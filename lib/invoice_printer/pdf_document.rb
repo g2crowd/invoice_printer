@@ -284,6 +284,8 @@ module InvoicePrinter
 
       items_params = determine_items_structure
       items = build_items_data(items_params)
+      return if items.empty?
+
       headers = build_items_header(items_params)
       data = items.prepend(headers)
 
@@ -296,15 +298,13 @@ module InvoicePrinter
         }
       }
 
-      unless items.empty?
-        @pdf.font_size(10) do
-          @pdf.table(data, options) do
-            row(0).background_color = 'e3e3e3'
-            row(0).border_color = 'aaaaaa'
-            row(0).borders = [:bottom]
-            row(items.size - 1).borders = [:bottom]
-            row(items.size - 1).border_color = 'd9d9d9'
-          end
+      @pdf.font_size(10) do
+        @pdf.table(data, options) do
+          row(0).background_color = 'e3e3e3'
+          row(0).border_color = 'aaaaaa'
+          row(0).borders = [:bottom]
+          row(items.size - 1).borders = [:bottom]
+          row(items.size - 1).border_color = 'd9d9d9'
         end
       end
     end
